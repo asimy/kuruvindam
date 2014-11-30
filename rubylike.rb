@@ -25,12 +25,10 @@ class Rubylike
     TCOD.sys_set_fps(LIMIT_FPS)
 
     m = GameMap.new(MAP_WIDTH, MAP_HEIGHT)
-    m.make_game_map
     @map = m.game_map
     
-    @player = GameElement.new(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', TCOD::Color::GREEN, @con, @map)
-    @npc = GameElement.new(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', TCOD::Color::YELLOW, @con, @map)
-    @elements = [@npc,@player]
+    @player = GameElement.new(m.starting_x, m.starting_y, '@', TCOD::Color::GREEN, @con, @map)
+    @elements = [@player]
     
     game_loop
   end
