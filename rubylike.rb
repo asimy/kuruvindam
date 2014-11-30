@@ -1,12 +1,12 @@
 #!/usr/bin/env ruby
 require 'libtcod'
 require 'singleton'
-require 'lib/game_element'
+require_relative 'lib/game_element'
 
 class Rubylike
   include Singleton
   
-  attr_reader :con
+  attr_reader :con, :elements, :player
   
   #actual size of the window
   SCREEN_WIDTH = 80
@@ -20,8 +20,10 @@ class Rubylike
     @con = TCOD.console_new(SCREEN_WIDTH, SCREEN_HEIGHT)
     TCOD.sys_set_fps(LIMIT_FPS)
 
-    $playerx = SCREEN_WIDTH/2
-    $playery = SCREEN_HEIGHT/2
+    @player = GameElement.new(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', TCOD::Color::GREEN, @con)
+    @npc = GameElement.new(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', TCOD::Color::YELLOW, @con)
+    @elements = [@npc,@player]
+    
     game_loop
   end
   
@@ -40,13 +42,13 @@ class Rubylike
 
     #movement keys
     if TCOD.console_is_key_pressed(TCOD::KEY_UP)
-        $playery -= 1
+      @player.move(0, -1)
     elsif TCOD.console_is_key_pressed(TCOD::KEY_DOWN)
-        $playery += 1
+      @player.move(0, 1)
     elsif TCOD.console_is_key_pressed(TCOD::KEY_LEFT)
-        $playerx -= 1
+      @player.move(-1, 0)
     elsif TCOD.console_is_key_pressed(TCOD::KEY_RIGHT)
-        $playerx += 1
+      @player.move(1, 0)
     end
 
     false
@@ -58,12 +60,11 @@ class Rubylike
   def game_loop
     until TCOD.console_is_window_closed
       TCOD.console_set_default_foreground(con, TCOD::Color::WHITE)
-      TCOD.console_put_char(con, $playerx, $playery, '@'.ord, TCOD::BKGND_NONE)
+      @elements.each {|obj| obj.draw }
 
       TCOD.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, nil, 0, 0, 1.0, 1.0)
       TCOD.console_flush()
-
-      TCOD.console_put_char(con, $playerx, $playery, ' '.ord, TCOD::BKGND_NONE)
+      @elements.each {|obj| obj.clear }
 
       #handle keys and exit game if needed
       will_exit = handle_keys

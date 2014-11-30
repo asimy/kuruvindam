@@ -1,29 +1,27 @@
-require_relative 'rubylike'
-
 class GameElement
   
-  attr_accessor :x, :y, :char, :color, :con
+  attr_accessor(:x, :y, :char, :color, :con)
   
-  def initialize(x, y, char, color)
-    @x = x
-    @y = y
-    @char = char
-    @color = color
-    @con = Rubylike.instance.con
+  def initialize(startx, starty, character, char_color, console)
+    @x = startx
+    @y = starty
+    @char = character
+    @color = char_color
+    @con = console
   end
   
   def move(dx, dy)
-    x += dx
-    y += dy
+    @x += dx
+    @y += dy
   end
   
   def draw
-    TCOD.console_set_default_foreground(con, color)
-    TCOD.console_put_char(con, x, y, char, TCOD.BKGND_NONE)
+    TCOD.console_set_default_foreground(@con, color)
+    TCOD.console_put_char(@con, @x, @y, @char.ord, TCOD::BKGND_NONE)
   end
   
   def clear
-    TCOD.console_put_char(con, x, y, ' ', TCOD.BKGND_NONE)
+    TCOD.console_put_char(@con, @x, @y, ' '.ord, TCOD::BKGND_NONE)
   end
   
 end
