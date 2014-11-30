@@ -2,16 +2,20 @@
 require 'libtcod'
 require 'singleton'
 require_relative 'lib/game_element'
+require_relative 'lib/game_map'
 
 class Rubylike
   include Singleton
   
-  attr_reader :con, :elements, :player
+  attr_reader :con, :elements, :player, :map
   
   #actual size of the window
   SCREEN_WIDTH = 80
   SCREEN_HEIGHT = 50
 
+  MAP_WIDTH = 80
+  MAP_HEIGHT = 45
+  
   LIMIT_FPS = 20  #20 frames-per-second maximum
 
   def initialize(width = SCREEN_WIDTH, height = SCREEN_HEIGHT)
@@ -20,8 +24,12 @@ class Rubylike
     @con = TCOD.console_new(SCREEN_WIDTH, SCREEN_HEIGHT)
     TCOD.sys_set_fps(LIMIT_FPS)
 
-    @player = GameElement.new(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', TCOD::Color::GREEN, @con)
-    @npc = GameElement.new(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', TCOD::Color::YELLOW, @con)
+    m = GameMap.new(MAP_WIDTH, MAP_HEIGHT)
+    m.make_game_map
+    @map = m.game_map
+    
+    @player = GameElement.new(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', TCOD::Color::GREEN, @con, @map)
+    @npc = GameElement.new(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', TCOD::Color::YELLOW, @con, @map)
     @elements = [@npc,@player]
     
     game_loop
@@ -53,6 +61,25 @@ class Rubylike
 
     false
   end
+  
+  def render_all
+    color_dark_wall = TCOD::Color.rgb(0, 0, 100)
+    color_dark_ground = TCOD::Color.rgb(50, 50, 150)
+    
+    (0...MAP_HEIGHT).each do |y|
+      (0...MAP_WIDTH).each do |x|
+      
+        if @map[x][y].block_sight
+          TCOD.console_put_char_ex(@con, x, y, '#'.ord, TCOD::Color::WHITE, TCOD::Color::BLACK)
+        else
+          TCOD.console_put_char_ex(@con, x, y, '.'.ord, TCOD::Color::WHITE, TCOD::Color::BLACK)
+        end
+      end
+    end
+
+    @elements.each {|element| element.draw }
+    TCOD.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, nil, 0, 0, 1.0, 1.0)
+  end
 
   #############################################
   # Initialization & Main Loop
@@ -60,9 +87,9 @@ class Rubylike
   def game_loop
     until TCOD.console_is_window_closed
       TCOD.console_set_default_foreground(con, TCOD::Color::WHITE)
-      @elements.each {|obj| obj.draw }
+      
+      render_all
 
-      TCOD.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, nil, 0, 0, 1.0, 1.0)
       TCOD.console_flush()
       @elements.each {|obj| obj.clear }
 
