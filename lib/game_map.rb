@@ -17,10 +17,10 @@ class GameMap
 
     @rooms = []
 
-    color_dark_wall    = TCOD.color_RGB(0, 0, 100)
-    color_light_wall   = TCOD.color_RGB(130, 110, 50)
-    color_dark_ground  = TCOD.color_RGB(50, 50, 150)
-    color_light_ground = TCOD.color_RGB(200, 180, 50)
+    @color_dark_wall    = TCOD::Color.rgb(0, 0, 100)
+    @color_light_wall   = TCOD::Color.rgb(130, 110, 50)
+    @color_dark_ground  = TCOD::Color.rgb(50, 50, 150)
+    @color_light_ground = TCOD::Color.rgb(200, 180, 50)
 
     @fov_map = TCOD.map_new(@width, @height)
 
@@ -109,11 +109,11 @@ end
 
 class Tile
 
-  attr_accessor :blocked, :block_sight
+  attr_accessor :blocked, :block_sight, :explored
 
   def initialize(blocked, block_sight = nil)
     @blocked = blocked
-
+    @explored = false
     @block_sight = block_sight.nil? ? @blocked : block_sight
   end
 end

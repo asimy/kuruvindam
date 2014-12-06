@@ -66,8 +66,6 @@ class Rubylike
   end
 
   def render_all
-    color_dark_wall = TCOD::Color.rgb(0, 0, 100)
-    color_dark_ground = TCOD::Color.rgb(50, 50, 150)
 
     (0...MAP_HEIGHT).each do |y|
       (0...MAP_WIDTH).each do |x|
@@ -76,15 +74,17 @@ class Rubylike
 
         if visible
           if wall
-            TCOD.console_put_char_ex(@con, x, y, '#'.ord, TCOD::Color::WHITE, TCOD::Color::BLACK)
+            TCOD.console_put_char_ex(@con, x, y, '#'.ord, @map.color_light_wall, @map.color_light_ground)
           else
-            TCOD.console_put_char_ex(@con, x, y, '.'.ord, TCOD::Color::WHITE, TCOD::Color::BLACK)
+            TCOD.console_put_char_ex(@con, x, y, '.'.ord, @map.color_light_wall, @map.color_light_ground)
           end
         else
-          if wall
-            TCOD.console_put_char_ex(@con, x, y, '#'.ord, TCOD::Color::BLACK, TCOD::Color::BLACK)
-          else
-            TCOD.console_put_char_ex(@con, x, y, '.'.ord, TCOD::Color::BLACK, TCOD::Color::BLACK)
+          if @game_map[x][y].explored
+            if wall
+              TCOD.console_put_char_ex(@con, x, y, '#'.ord, @map.color_dark_wall, @map.color_dark_ground)
+            else
+              TCOD.console_put_char_ex(@con, x, y, '.'.ord, @map.color_dark_wall, @map.color_dark_ground)
+            end
           end
         end
       end
