@@ -29,6 +29,7 @@ class Rubylike
     @game_map = @map.game_map
 
     @player = GameElement.new(@map.starting_x, @map.starting_y, '@', TCOD::Color::GREEN, @con, @map, true)
+    @map.fov_recompute(player: @player)
     @elements = [@player]
 
     game_loop
