@@ -27,8 +27,9 @@ class Kuruvindam
 
     @map = GameMap.new(MAP_WIDTH, MAP_HEIGHT)
     @game_map = @map.game_map
+    @fov_map = @map.fov_map
 
-    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', TCOD::Color::GREEN, @con, @map, true)
+    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', TCOD::Color::GREEN, @con, @fov_map)
     @map.fov_recompute(player: @player)
     @elements = [@player]
 
@@ -36,6 +37,14 @@ class Kuruvindam
   end
 
   private
+
+  def blocked?(x, y)
+    return @game_map[x][y].blocked if @game_map[x][y].blocked
+    # blocking_elements = elements.select {|element| element.blocks &&
+    #                                                element.x == x &&
+    #                                                element.y == y }
+    # return blocking_elements.size > 0
+  end
 
   def handle_keys
     #key = TCOD.console_check_for_keypress()  #real-time
@@ -50,17 +59,25 @@ class Kuruvindam
 
     #movement keys
     if TCOD.console_is_key_pressed(TCOD::KEY_UP)
-      @player.move(0, -1)
-      @map.fov_recompute(player: @player)
+      unless blocked?(@player.x, @player.y - 1)
+        @player.move(0, -1)
+        @map.fov_recompute(player: @player)
+      end
     elsif TCOD.console_is_key_pressed(TCOD::KEY_DOWN)
-      @player.move(0, 1)
-      @map.fov_recompute(player: @player)
+      unless blocked?(@player.x, @player.y + 1)
+        @player.move(0, 1)
+        @map.fov_recompute(player: @player)
+      end
     elsif TCOD.console_is_key_pressed(TCOD::KEY_LEFT)
-      @player.move(-1, 0)
-      @map.fov_recompute(player: @player)
+      unless blocked?(@player.x - 1, @player.y)
+        @player.move(-1, 0)
+        @map.fov_recompute(player: @player)
+      end
     elsif TCOD.console_is_key_pressed(TCOD::KEY_RIGHT)
-      @player.move(1, 0)
-      @map.fov_recompute(player: @player)
+      unless blocked?(@player.x + 1, @player.y)
+        @player.move(1, 0)
+        @map.fov_recompute(player: @player)
+      end
     end
 
     false

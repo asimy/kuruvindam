@@ -1,26 +1,19 @@
 class GameElement
 
-  attr_accessor :x, :y, :char, :color, :con, :game_map, :map, :fov_map
+  attr_accessor :x, :y, :char, :color, :con, :fov_map
 
-  def initialize(startx, starty, character, char_color, console, map, fov_recompute_on_move = false)
+  def initialize(startx, starty, character, char_color, console, fov_map)
     @x = startx
     @y = starty
     @char = character
     @color = char_color
     @con = console
-    @map = map
-    @game_map = map.game_map
-    @fov_map = map.fov_map
-
-    @fov_recompute_on_move = fov_recompute_on_move
+    @fov_map = fov_map
   end
 
   def move(dx, dy)
-    unless @game_map[x + dx][y + dy].blocked
       @x += dx
       @y += dy
-      @map.fov_recompute(player: self) if @fov_recompute_on_move
-    end
   end
 
   def draw
