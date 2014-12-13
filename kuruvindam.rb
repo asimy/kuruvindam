@@ -5,7 +5,7 @@ require_relative 'lib/game_element'
 require_relative 'lib/game_map'
 require 'byebug'
 
-class Rubylike
+class Kuruvindam
   include Singleton
 
   attr_reader :con, :elements, :player, :game_map
@@ -116,4 +116,4 @@ class Rubylike
 
 end
 
-Rubylike.instance
+Kuruvindam.instance
