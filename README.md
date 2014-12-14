@@ -5,28 +5,30 @@ This is a Ruby port of the game created in [RogueBasin](http://www.roguebasin.co
 I'm using it to understand how to write a roguelike (hence the lack of testing, stability and documentation). Once I've got the port working, I'll clean it up and write up a Ruby-flavored version of the tutorial.
 
 ## Prerequisites
-This has only been tested under Mac OS X, but in principle should run under any system that can run Ruby 2 and whick libtcod supports
+This has only been tested under Mac OS X, but in principle should run under any system that can run Ruby 2 and which libtcod supports
 
 ## Installation
 
 Grab a copy from github
 
-```git clone https://github.com/asimy/kuruvindam.git kuruvindam```
+    git clone https://github.com/asimy/kuruvindam.git kuruvindam
 
 ## Usage
 
 To run the game,
 
-```cd kuruvindam
-ruby kuruvindam.rb```
+    cd kuruvindam
+    ruby kuruvindam.rb
 
 ### Game controls
 These are *very* basic:
+
 - Arrows keys move your character (currently represented by the classic '@'). Bump into monsters to attack them.
-- <Esc> to exit the game
+- Esc to exit the game
 - option/alt-Return toggles full screen
 
 ## Todo
+
 - Test on other platforms
 - Finish the tutorial
 - Fix all the things
