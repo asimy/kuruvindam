@@ -8,7 +8,7 @@ class GameMap
   FOV_LIGHT_WALLS = true
   TORCH_RADIUS = 10
 
-  attr_reader :game_map, :fov_map, :starting_x, :starting_y
+  attr_reader :game_map, :fov_map, :starting_x, :starting_y, :rooms
   attr_accessor :color_dark_wall, :color_light_wall, :color_dark_ground, :color_light_ground
 
   def initialize(width, height)

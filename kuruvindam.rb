@@ -19,6 +19,8 @@ class Kuruvindam
 
   LIMIT_FPS = 20  #20 frames-per-second maximum
 
+  MAX_ROOM_MONSTERS = 3
+
   def initialize(width = SCREEN_WIDTH, height = SCREEN_HEIGHT)
     TCOD.console_set_custom_font('arial10x10.png', TCOD::FONT_TYPE_GREYSCALE | TCOD::FONT_LAYOUT_TCOD, 0, 0)
     TCOD.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'ruby/TCOD tutorial', false, TCOD::RENDERER_SDL)
@@ -33,10 +35,29 @@ class Kuruvindam
     @map.fov_recompute(player: @player)
     @elements = [@player]
 
+    @map.rooms.each do |room|
+      place_objects(room)
+    end
+
     game_loop
   end
 
   private
+
+  def place_objects(room)
+    (0..rand(MAX_ROOM_MONSTERS)).each do
+      x = rand(room.x1..room.x2)
+      y = rand(room.y1..room.y2)
+
+      if rand(1..10) < 8
+        monster = GameElement.new(x, y, 'o', TCOD::Color::DESATURATED_GREEN, @con, @fov_map)
+      else
+        monster = GameElement.new(x, y, 'T', TCOD::Color::DARKER_GREEN, @con, @fov_map)
+      end
+
+      @elements << monster
+    end
+  end
 
   def blocked?(x, y)
     return @game_map[x][y].blocked if @game_map[x][y].blocked
