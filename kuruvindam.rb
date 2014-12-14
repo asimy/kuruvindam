@@ -9,6 +9,7 @@ class Kuruvindam
   include Singleton
 
   attr_reader :con, :elements, :player, :game_map
+  attr_accessor :game_state, :player_action
 
   #actual size of the window
   SCREEN_WIDTH = 80
@@ -31,13 +32,19 @@ class Kuruvindam
     @game_map = @map.game_map
     @fov_map = @map.fov_map
 
-    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', TCOD::Color::GREEN, @con, @fov_map)
+    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::GREEN, @con, @fov_map, true)
     @map.fov_recompute(player: @player)
-    @elements = [@player]
+    test_monster = GameElement.new(@player.x + 1, @player.y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, true)
+    @elements = [@player, test_monster]
 
     @map.rooms.each do |room|
       place_objects(room)
     end
+
+    @game_state = :playing
+    @player_action = nil
+
+    # @game_log = open('game.log', 'r+')
 
     game_loop
   end
@@ -50,9 +57,9 @@ class Kuruvindam
       y = rand(room.y1..room.y2)
 
       if rand(1..10) < 8
-        monster = GameElement.new(x, y, 'o', TCOD::Color::DESATURATED_GREEN, @con, @fov_map)
+        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, true)
       else
-        monster = GameElement.new(x, y, 'T', TCOD::Color::DARKER_GREEN, @con, @fov_map)
+        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, @fov_map, true)
       end
 
       @elements << monster
@@ -61,10 +68,26 @@ class Kuruvindam
 
   def blocked?(x, y)
     return @game_map[x][y].blocked if @game_map[x][y].blocked
-    # blocking_elements = elements.select {|element| element.blocks &&
-    #                                                element.x == x &&
-    #                                                element.y == y }
-    # return blocking_elements.size > 0
+    blocking_elements = elements.select {|element| element.blocks &&
+                                                   element.x == x &&
+                                                   element.y == y }
+    return blocking_elements.size > 0
+  end
+
+  def player_move_or_attack(dx, dy)
+    x = player.x + dx
+    y = player.y + dy
+
+    target = @elements.select {|element| element.x == x && element.y == y}.first
+
+    if target
+      puts "The #{target.name} laughes at your puny attack!"
+    else
+      unless blocked?(x, y)
+        player.move(dx, dy)
+        @map.fov_recompute(player: player)
+      end
+    end
   end
 
   def handle_keys
@@ -75,33 +98,23 @@ class Kuruvindam
       #Alt+Enter: toggle fullscreen
       TCOD.console_set_fullscreen(!TCOD.console_is_fullscreen())
     elsif key.vk == TCOD::KEY_ESCAPE
-      return true  #exit game
+      return :exit  #exit game
     end
 
-    #movement keys
-    if TCOD.console_is_key_pressed(TCOD::KEY_UP)
-      unless blocked?(@player.x, @player.y - 1)
-        @player.move(0, -1)
-        @map.fov_recompute(player: @player)
-      end
-    elsif TCOD.console_is_key_pressed(TCOD::KEY_DOWN)
-      unless blocked?(@player.x, @player.y + 1)
-        @player.move(0, 1)
-        @map.fov_recompute(player: @player)
-      end
-    elsif TCOD.console_is_key_pressed(TCOD::KEY_LEFT)
-      unless blocked?(@player.x - 1, @player.y)
-        @player.move(-1, 0)
-        @map.fov_recompute(player: @player)
-      end
-    elsif TCOD.console_is_key_pressed(TCOD::KEY_RIGHT)
-      unless blocked?(@player.x + 1, @player.y)
-        @player.move(1, 0)
-        @map.fov_recompute(player: @player)
+    if @game_state == :playing
+      #movement keys
+      if TCOD.console_is_key_pressed(TCOD::KEY_UP)
+        player_move_or_attack(0, -1)
+      elsif TCOD.console_is_key_pressed(TCOD::KEY_DOWN)
+        player_move_or_attack(0, 1)
+      elsif TCOD.console_is_key_pressed(TCOD::KEY_LEFT)
+        player_move_or_attack(-1, 0)
+      elsif TCOD.console_is_key_pressed(TCOD::KEY_RIGHT)
+        player_move_or_attack(1, 0)
+      else
+        return :didnt_take_turn
       end
     end
-
-    false
   end
 
   def render_all
@@ -146,10 +159,15 @@ class Kuruvindam
       @elements.each {|obj| obj.clear }
 
       #handle keys and exit game if needed
-      will_exit = handle_keys
-      break if will_exit
-    end
+      player_action = handle_keys
+      break if player_action == :exit
 
+      if game_state == :playing && player_action != :didnt_take_turn
+        elements.each do |element|
+          puts "The #{element.name} growls!" unless element == player
+        end
+      end
+    end
   end
 
 end
