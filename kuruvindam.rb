@@ -87,7 +87,7 @@ class Kuruvindam
     target = @elements.select {|element| element.x == x && element.y == y}.first
 
     if target
-      puts "The #{target.name} laughes at your puny attack!"
+      player.char_class.attack(target)
     else
       unless blocked?(x, y)
         player.move(dx, dy)
@@ -150,6 +150,9 @@ class Kuruvindam
 
     @elements.each {|element| element.draw }
     TCOD.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, nil, 0, 0, 1.0, 1.0)
+
+    TCOD.console_set_default_foreground(con, TCOD::Color::WHITE)
+    TCOD.console_print_ex(con, 1, SCREEN_HEIGHT - 2, TCOD::BKGND_NONE, TCOD::LEFT, "HP: #{player.char_class.hp}/#{player.char_class.max_hp}")
   end
 
   #############################################

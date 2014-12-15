@@ -14,7 +14,7 @@ class BasicMonster
       if monster.distance_to(player) > 2
         monster.move_towards(player.x, player.y)
       elsif player.char_class.hp > 0
-        puts "The attack of the #{monster.name} bounces off of you shiny metal a--, uh, armor!"
+        monster.char_class.attack(player)
       end
     end
   end
