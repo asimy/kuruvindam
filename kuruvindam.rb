@@ -3,6 +3,8 @@ require 'libtcod'
 require 'singleton'
 require_relative 'lib/game_element'
 require_relative 'lib/game_map'
+require_relative 'lib/character_class'
+require_relative 'lib/basic_monster'
 require 'byebug'
 
 class Kuruvindam
@@ -32,10 +34,10 @@ class Kuruvindam
     @game_map = @map.game_map
     @fov_map = @map.fov_map
 
-    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::GREEN, @con, @fov_map, true)
+    class_component = CharacterClass.new(hp: 30, defense: 2, power: 5)
+    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::GREEN, @con, @fov_map, true, class_component)
     @map.fov_recompute(player: @player)
-    test_monster = GameElement.new(@player.x + 1, @player.y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, true)
-    @elements = [@player, test_monster]
+    @elements = [@player]
 
     @map.rooms.each do |room|
       place_objects(room)
@@ -56,10 +58,14 @@ class Kuruvindam
       x = rand(room.x1..room.x2)
       y = rand(room.y1..room.y2)
 
-      if rand(1..10) < 8
-        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, true)
+      if rand(1..10) <= 8
+        class_component = CharacterClass.new(hp: 10, defense: 0, power: 3)
+        ai_component = BasicMonster.new(player: player)
+        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, true, class_component, ai_component)
       else
-        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, @fov_map, true)
+        class_component = CharacterClass.new(hp: 16, defense: 1, power: 4)
+        ai_component = BasicMonster.new(player: player)
+        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, @fov_map, true, class_component, ai_component)
       end
 
       @elements << monster
@@ -164,7 +170,7 @@ class Kuruvindam
 
       if game_state == :playing && player_action != :didnt_take_turn
         elements.each do |element|
-          puts "The #{element.name} growls!" unless element == player
+          element.ai.take_turn if element.ai
         end
       end
     end
