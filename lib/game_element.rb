@@ -1,8 +1,8 @@
 class GameElement
 
-  attr_accessor :x, :y, :char, :color, :con, :fov_map, :name, :blocks, :char_class, :ai
+  attr_accessor :x, :y, :char, :color, :con, :fov_map, :name, :blocks, :combatant, :ai, :game
 
-  def initialize(startx, starty, character, name, char_color, console, fov_map, blocks = false, char_class = nil, ai = nil)
+  def initialize(startx, starty, character, name, char_color, console, fov_map, blocks = false, combatant = nil, ai = nil)
     @x = startx
     @y = starty
     @char = character
@@ -11,8 +11,8 @@ class GameElement
     @fov_map = fov_map
     @name = name
     @blocks = blocks
-    @char_class = char_class
-    char_class.owner = self if char_class
+    @combatant = combatant
+    combatant.owner = self if combatant
 
     @ai = ai
     ai.owner = self if ai
@@ -44,7 +44,7 @@ class GameElement
 
     dx = (dx/distance).round.to_i
     dy = (dy/distance).round.to_i
-    move(dx, dy)
+    move(dx, dy) unless game.blocked?(x + dx, y + dy)
   end
 
   def distance_to(other_element)

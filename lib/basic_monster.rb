@@ -13,8 +13,8 @@ class BasicMonster
     if TCOD.map_is_in_fov(owner.fov_map, monster.x, monster.y)
       if monster.distance_to(player) > 2
         monster.move_towards(player.x, player.y)
-      elsif player.char_class.hp > 0
-        monster.char_class.attack(player)
+      elsif player.combatant.hp > 0
+        monster.combatant.attack(player)
       end
     end
   end

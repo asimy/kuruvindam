@@ -3,7 +3,7 @@ require 'libtcod'
 require 'singleton'
 require_relative 'lib/game_element'
 require_relative 'lib/game_map'
-require_relative 'lib/character_class'
+require_relative 'lib/combatant'
 require_relative 'lib/basic_monster'
 require 'byebug'
 
@@ -34,8 +34,8 @@ class Kuruvindam
     @game_map = @map.game_map
     @fov_map = @map.fov_map
 
-    class_component = CharacterClass.new(hp: 30, defense: 2, power: 5)
-    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::GREEN, @con, @fov_map, true, class_component)
+    player_combatant = Combatant.new(hp: 30, defense: 2, power: 5, death_function: method(:player_death))
+    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::GREEN, @con, @fov_map, true, player_combatant)
     @map.fov_recompute(player: @player)
     @elements = [@player]
 
@@ -46,30 +46,7 @@ class Kuruvindam
     @game_state = :playing
     @player_action = nil
 
-    # @game_log = open('game.log', 'r+')
-
     game_loop
-  end
-
-  private
-
-  def place_objects(room)
-    (0..rand(MAX_ROOM_MONSTERS)).each do
-      x = rand(room.x1..room.x2)
-      y = rand(room.y1..room.y2)
-
-      if rand(1..10) <= 8
-        class_component = CharacterClass.new(hp: 10, defense: 0, power: 3)
-        ai_component = BasicMonster.new(player: player)
-        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, true, class_component, ai_component)
-      else
-        class_component = CharacterClass.new(hp: 16, defense: 1, power: 4)
-        ai_component = BasicMonster.new(player: player)
-        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, @fov_map, true, class_component, ai_component)
-      end
-
-      @elements << monster
-    end
   end
 
   def blocked?(x, y)
@@ -80,14 +57,58 @@ class Kuruvindam
     return blocking_elements.size > 0
   end
 
+  private
+
+  def player_death(player)
+    puts "#{player.name} died!"
+    @game_state = :dead
+    player.char = '%'
+    player.color = TCOD::Color::DARK_RED
+  end
+
+  def monster_death(monster)
+    puts "#{monster.name.capitalize} is dead!"
+    monster.char = '%'
+    monster.color = TCOD::Color::DARK_RED
+    send_to_back(monster)
+    monster.blocks = false
+    monster.combatant = nil
+    monster.ai = nil
+    monster.name = "remains of #{monster.name}"
+  end
+
+  def place_objects(room)
+    (0..rand(MAX_ROOM_MONSTERS)).each do
+      x = rand(room.x1..room.x2)
+      y = rand(room.y1..room.y2)
+
+      if rand(1..10) <= 8
+        monster_combatant = Combatant.new(hp: 10, defense: 0, power: 3, death_function: method(:monster_death))
+        ai_component = BasicMonster.new(player: player)
+        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, true, monster_combatant, ai_component)
+      else
+        monster_combatant = Combatant.new(hp: 16, defense: 1, power: 4, death_function: method(:monster_death))
+        ai_component = BasicMonster.new(player: player)
+        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, @fov_map, true, monster_combatant, ai_component)
+      end
+      monster.game = self
+
+      @elements << monster
+    end
+  end
+
+  def send_to_back(element)
+    elements.unshift(elements.delete(element))
+  end
+
   def player_move_or_attack(dx, dy)
     x = player.x + dx
     y = player.y + dy
 
-    target = @elements.select {|element| element.x == x && element.y == y}.first
+    target = @elements.select {|element| element.combatant && element.x == x && element.y == y}.first
 
     if target
-      player.char_class.attack(target)
+      player.combatant.attack(target)
     else
       unless blocked?(x, y)
         player.move(dx, dy)
@@ -148,11 +169,12 @@ class Kuruvindam
       end
     end
 
-    @elements.each {|element| element.draw }
+    @elements.each {|element| element.draw unless element == player }
+    player.draw
     TCOD.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, nil, 0, 0, 1.0, 1.0)
 
     TCOD.console_set_default_foreground(con, TCOD::Color::WHITE)
-    TCOD.console_print_ex(con, 1, SCREEN_HEIGHT - 2, TCOD::BKGND_NONE, TCOD::LEFT, "HP: #{player.char_class.hp}/#{player.char_class.max_hp}")
+    TCOD.console_print_ex(con, 1, SCREEN_HEIGHT - 2, TCOD::BKGND_NONE, TCOD::LEFT, "HP: #{player.combatant.hp}/#{player.combatant.max_hp}")
   end
 
   #############################################
