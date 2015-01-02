@@ -10,31 +10,45 @@ require 'byebug'
 class Kuruvindam
   include Singleton
 
-  attr_reader :con, :elements, :player, :game_map
-  attr_accessor :game_state, :player_action
+  attr_reader :con, :panel, :elements, :player, :game_map, :mouse, :key
+  attr_accessor :game_state, :player_action, :game_messages
 
   #actual size of the window
   SCREEN_WIDTH = 80
   SCREEN_HEIGHT = 50
 
   MAP_WIDTH = 80
-  MAP_HEIGHT = 45
+  MAP_HEIGHT = 43
 
   LIMIT_FPS = 20  #20 frames-per-second maximum
 
   MAX_ROOM_MONSTERS = 3
 
+  #sizes and coordinates relevant for the GUI
+  BAR_WIDTH = 20
+  PANEL_HEIGHT = 7
+  PANEL_Y = SCREEN_HEIGHT - PANEL_HEIGHT
+
+  MSG_X = BAR_WIDTH + 2
+  MSG_WIDTH = SCREEN_WIDTH - BAR_WIDTH - 2
+  MSG_HEIGHT = PANEL_HEIGHT - 1
+
   def initialize(width = SCREEN_WIDTH, height = SCREEN_HEIGHT)
     TCOD.console_set_custom_font('arial10x10.png', TCOD::FONT_TYPE_GREYSCALE | TCOD::FONT_LAYOUT_TCOD, 0, 0)
     TCOD.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'ruby/TCOD tutorial', false, TCOD::RENDERER_SDL)
     @con = TCOD.console_new(SCREEN_WIDTH, SCREEN_HEIGHT)
+    @panel = TCOD.console_new(SCREEN_WIDTH, SCREEN_HEIGHT)
+
     TCOD.sys_set_fps(LIMIT_FPS)
+
+    @mouse = TCOD::Mouse.new
+    @key = TCOD::Key.new
 
     @map = GameMap.new(MAP_WIDTH, MAP_HEIGHT)
     @game_map = @map.game_map
     @fov_map = @map.fov_map
 
-    player_combatant = Combatant.new(hp: 30, defense: 2, power: 5, death_function: method(:player_death))
+    player_combatant = Combatant.new(hp: 29, defense: 2, power: 5, death_function: method(:player_death))
     @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::GREEN, @con, @fov_map, true, player_combatant)
     @map.fov_recompute(player: @player)
     @elements = [@player]
@@ -45,6 +59,9 @@ class Kuruvindam
 
     @game_state = :playing
     @player_action = nil
+    @game_messages = []
+
+    message('Welcome stranger! Prepare to perish in the Tombs of the Ancient Kings.', TCOD::Color::RED)
 
     game_loop
   end
@@ -117,10 +134,18 @@ class Kuruvindam
     end
   end
 
-  def handle_keys
-    #key = TCOD.console_check_for_keypress()  #real-time
-    key = TCOD.console_wait_for_keypress(true)  #turn-based
+  def get_names_under_mouse
+    x, y = mouse.cx, mouse.cy
 
+    names = elements.select {|element| element.x == x &&
+      element.y == y &&
+      TCOD::map_is_in_fov(@fov_map, element.x, element.y)}
+      .map(&:name)
+
+    names.map(&:capitalize).join(', ')
+  end
+
+  def handle_keys
     if key.vk == TCOD::KEY_ENTER && key.lalt
       #Alt+Enter: toggle fullscreen
       TCOD.console_set_fullscreen(!TCOD.console_is_fullscreen())
@@ -130,13 +155,13 @@ class Kuruvindam
 
     if @game_state == :playing
       #movement keys
-      if TCOD.console_is_key_pressed(TCOD::KEY_UP)
+      if key.vk == TCOD::KEY_UP
         player_move_or_attack(0, -1)
-      elsif TCOD.console_is_key_pressed(TCOD::KEY_DOWN)
+      elsif key.vk == TCOD::KEY_DOWN
         player_move_or_attack(0, 1)
-      elsif TCOD.console_is_key_pressed(TCOD::KEY_LEFT)
+      elsif key.vk == TCOD::KEY_LEFT
         player_move_or_attack(-1, 0)
-      elsif TCOD.console_is_key_pressed(TCOD::KEY_RIGHT)
+      elsif key.vk == TCOD::KEY_RIGHT
         player_move_or_attack(1, 0)
       else
         return :didnt_take_turn
@@ -144,8 +169,43 @@ class Kuruvindam
     end
   end
 
-  def render_all
+  def render_bar(x, y, total_width, name, value, maximum, bar_color, back_color)
+    bar_width = (value/maximum)*total_width
+    TCOD.console_set_default_background(panel, back_color)
+    TCOD.console_rect(panel, x, y, total_width, 1, false, TCOD::BKGND_SCREEN)
 
+    TCOD.console_set_default_background(panel, bar_color)
+    TCOD.console_rect(panel, x, y, bar_width, 1, false, TCOD::BKGND_SCREEN) if bar_width > 0
+
+    TCOD.console_set_default_foreground(panel, TCOD::Color::WHITE)
+    TCOD.console_print_ex(panel, x + total_width / 2, y, TCOD::BKGND_NONE,
+                          TCOD::CENTER, "#{name}: #{value}/#{maximum}")
+  end
+
+  def message(new_msg, color = TCOD::Color::WHITE)
+    new_msg_lines = word_wrap(new_msg, line_width: MSG_WIDTH)
+
+    new_msg_lines.each_line do |line|
+      # get rid of oldest line if the message list is at its max length
+      game_messages.shift if game_messages.size == MSG_HEIGHT
+
+      # use a two-element hash
+      game_messages << {text: line, color: color}
+    end
+
+
+  end
+
+  # stolen (:)) from ActionView::Helpers::TextHelper#word_wrap
+  def word_wrap(text, options = {})
+    line_width = options.fetch(:line_width, 80)
+
+    text.split("\n").collect! do |line|
+      line.length > line_width ? line.gsub(/(.{1,#{line_width}})(\s+|$)/, "\\1\n").strip : line
+    end * "\n"
+  end
+
+  def render_all
     (0...MAP_HEIGHT).each do |y|
       (0...MAP_WIDTH).each do |x|
         visible = TCOD.map_is_in_fov(@map.fov_map, x, y)
@@ -173,8 +233,29 @@ class Kuruvindam
     player.draw
     TCOD.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, nil, 0, 0, 1.0, 1.0)
 
-    TCOD.console_set_default_foreground(con, TCOD::Color::WHITE)
-    TCOD.console_print_ex(con, 1, SCREEN_HEIGHT - 2, TCOD::BKGND_NONE, TCOD::LEFT, "HP: #{player.combatant.hp}/#{player.combatant.max_hp}")
+    #prepare to render the GUI panel
+    TCOD.console_set_default_background(panel, TCOD::Color::BLACK)
+    TCOD.console_clear(panel)
+
+    #print the game messages, one line at a time
+    y = 1
+    game_messages.each do |msg|
+      TCOD.console_set_default_foreground(panel, msg[:color])
+      TCOD.console_print_ex(panel, MSG_X, y, TCOD::BKGND_NONE, TCOD::LEFT, msg[:text])
+      y += 1
+    end
+
+
+    #show the player's stats
+    render_bar(1, 1, BAR_WIDTH, 'HP', player.combatant.hp, player.combatant.max_hp,
+               TCOD::Color::LIGHT_RED, TCOD::Color::DARKER_RED)
+
+    #display names of objects under the mouse
+    TCOD.console_set_default_foreground(panel, TCOD::Color::LIGHT_GRAY)
+    TCOD.console_print_ex(panel, 1, 0, TCOD::BKGND_NONE, TCOD::LEFT, get_names_under_mouse())
+
+    #blit the contents of "panel" to the root console
+    TCOD.console_blit(panel, 0, 0, SCREEN_WIDTH, PANEL_HEIGHT, nil, 0, PANEL_Y, 1.0, 1.0)
   end
 
   #############################################
@@ -183,6 +264,7 @@ class Kuruvindam
   def game_loop
     until TCOD.console_is_window_closed
       TCOD.console_set_default_foreground(con, TCOD::Color::WHITE)
+      TCOD::sys_check_for_event(TCOD::EVENT_KEY_PRESS | TCOD::EVENT_MOUSE, key, mouse)
 
       render_all
 
