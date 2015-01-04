@@ -28,4 +28,10 @@ class Combatant
       puts "#{owner.name.captalize} attacks #{target.name} but it has no effect!"
     end
   end
+
+  def heal(heal_amount)
+    @hp += heal_amount
+
+    @hp = [@hp, @max_hp].min
+  end
 end

@@ -5,6 +5,7 @@ require_relative 'lib/game_element'
 require_relative 'lib/game_map'
 require_relative 'lib/combatant'
 require_relative 'lib/basic_monster'
+require_relative 'lib/item'
 require 'byebug'
 
 class Kuruvindam
@@ -22,12 +23,16 @@ class Kuruvindam
 
   LIMIT_FPS = 20  #20 frames-per-second maximum
 
-  MAX_ROOM_MONSTERS = 3
+  MAX_ROOM_MONSTERS = 2
+  MAX_ROOM_ITEMS = 3
+  HEAL_AMOUNT = 4
 
   #sizes and coordinates relevant for the GUI
   BAR_WIDTH = 20
   PANEL_HEIGHT = 7
   PANEL_Y = SCREEN_HEIGHT - PANEL_HEIGHT
+
+  INVENTORY_WIDTH = 50
 
   MSG_X = BAR_WIDTH + 2
   MSG_WIDTH = SCREEN_WIDTH - BAR_WIDTH - 2
@@ -49,7 +54,8 @@ class Kuruvindam
     @fov_map = @map.fov_map
 
     player_combatant = Combatant.new(hp: 29, defense: 2, power: 5, death_function: method(:player_death))
-    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::GREEN, @con, @fov_map, true, player_combatant)
+    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::BLUE, @con, @fov_map, blocks: true, combatant: player_combatant)
+    @player.game = self
     @map.fov_recompute(player: @player)
     @elements = [@player]
 
@@ -74,17 +80,72 @@ class Kuruvindam
     return blocking_elements.size > 0
   end
 
+  def message(new_msg, color = TCOD::Color::WHITE)
+    new_msg_lines = word_wrap(new_msg, line_width: MSG_WIDTH)
+
+    new_msg_lines.each_line do |line|
+      # get rid of oldest line if the message list is at its max length
+      game_messages.shift if game_messages.size == MSG_HEIGHT
+
+      # use a two-element hash
+      game_messages << {text: line, color: color}
+    end
+  end
+
+  def menu(header, entries, width)
+    raise "cannot have a menu with more than 26 entries" if entries.count >= 26
+
+    header_height = TCOD.console_get_height_rect(con, 0, 0, width, SCREEN_HEIGHT, header)
+    height = entries.count + header_height
+
+    window = TCOD.console_new(width, height)
+
+    TCOD.console_set_default_foreground(window, TCOD::Color::WHITE)
+    TCOD.console_print_rect_ex(window, 0, 0, width, height, TCOD::BKGND_NONE, TCOD::LEFT, header)
+
+    y = header_height
+    letters = ('a'..'z').to_a
+
+    entries.each_with_index do |entry, i|
+      menu_item_text = "(#{letters[i]}) #{entry}"
+      TCOD.console_print_ex(window, 0, y, TCOD::BKGND_NONE, TCOD::LEFT, menu_item_text)
+      y += 1
+    end
+
+    # blit the contents of 'window' to the root console
+    x = SCREEN_WIDTH/2 - width/2
+    y = SCREEN_HEIGHT/2 - height/2
+    TCOD.console_blit(window, 0, 0, width, height, nil, x, y, 1.0, 0.7)
+
+    # show the root console and hold for a key press
+    TCOD.console_flush
+    key = TCOD.console_wait_for_keypress(true)
+
+    key.c.ord - 'a'.ord # item index
+  end
+
+  def inventory_menu(header)
+    if player.inventory.empty?
+      entries = ['Inventory is empty']
+    else
+      entries = player.inventory.map(&:name)
+    end
+
+    index = menu(header, entries, INVENTORY_WIDTH)
+    return player.inventory[index]
+  end
+
   private
 
   def player_death(player)
-    puts "#{player.name} died!"
+    message("#{player.name} died!", TCOD::Color::WHITE)
     @game_state = :dead
     player.char = '%'
     player.color = TCOD::Color::DARK_RED
   end
 
   def monster_death(monster)
-    puts "#{monster.name.capitalize} is dead!"
+    message("#{monster.name.capitalize} is dead!", TCOD::Color::WHITE)
     monster.char = '%'
     monster.color = TCOD::Color::DARK_RED
     send_to_back(monster)
@@ -96,21 +157,42 @@ class Kuruvindam
 
   def place_objects(room)
     (0..rand(MAX_ROOM_MONSTERS)).each do
-      x = rand(room.x1..room.x2)
-      y = rand(room.y1..room.y2)
+      x = rand(room.x1 + 1..room.x2 - 1)
+      y = rand(room.y1 + 1..room.y2 - 1)
 
       if rand(1..10) <= 8
         monster_combatant = Combatant.new(hp: 10, defense: 0, power: 3, death_function: method(:monster_death))
         ai_component = BasicMonster.new(player: player)
-        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, true, monster_combatant, ai_component)
+        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, blocks: true, combatant: monster_combatant, ai: ai_component)
       else
         monster_combatant = Combatant.new(hp: 16, defense: 1, power: 4, death_function: method(:monster_death))
         ai_component = BasicMonster.new(player: player)
-        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, @fov_map, true, monster_combatant, ai_component)
+        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, @fov_map, blocks: true, combatant: monster_combatant, ai: ai_component)
       end
       monster.game = self
 
       @elements << monster
+    end
+
+    (0..rand(MAX_ROOM_ITEMS)).each do
+      x = rand(room.x1 + 1..room.x2 - 1)
+      y = rand(room.y1 + 1..room.y2 - 1)
+
+      unless blocked?(x, y)
+        inventory_item = Item.new('Healing potion') {
+          if player.combatant.hp == player.combatant.max_hp
+            message('You are already at full health.', TCOD::Color::RED)
+            return 'cancelled'
+          end
+
+          message('Your wounds start to feel better!', TCOD::Color::LIGHT_VIOLET)
+          player.combatant.heal(HEAL_AMOUNT)
+        }
+        item = GameElement.new(x, y, '!', 'Healing potion', TCOD::Color::VIOLET, @con, @fov_map, inventory: inventory_item)
+
+        @elements << item
+        send_to_back(item)
+      end
     end
   end
 
@@ -164,6 +246,20 @@ class Kuruvindam
       elsif key.vk == TCOD::KEY_RIGHT
         player_move_or_attack(1, 0)
       else
+        key_char = key.c
+
+        if key_char == 'g'
+          item_holder = elements.select {|element| element.x == player.x && element.y == player.y && !element.inventory.empty?}.first
+          if item_holder
+            player.pick_up(item_holder) if item_holder
+          end
+        end
+
+        if key_char == 'i'
+          chosen_item = inventory_menu("Press the key next to an item to use it or any other key to cancel\n")
+          chosen_item.use_item if chosen_item
+        end
+
         return :didnt_take_turn
       end
     end
@@ -180,20 +276,6 @@ class Kuruvindam
     TCOD.console_set_default_foreground(panel, TCOD::Color::WHITE)
     TCOD.console_print_ex(panel, x + total_width / 2, y, TCOD::BKGND_NONE,
                           TCOD::CENTER, "#{name}: #{value}/#{maximum}")
-  end
-
-  def message(new_msg, color = TCOD::Color::WHITE)
-    new_msg_lines = word_wrap(new_msg, line_width: MSG_WIDTH)
-
-    new_msg_lines.each_line do |line|
-      # get rid of oldest line if the message list is at its max length
-      game_messages.shift if game_messages.size == MSG_HEIGHT
-
-      # use a two-element hash
-      game_messages << {text: line, color: color}
-    end
-
-
   end
 
   # stolen (:)) from ActionView::Helpers::TextHelper#word_wrap
