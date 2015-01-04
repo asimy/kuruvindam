@@ -15,9 +15,7 @@ class GameElement
     combatant.owner = self if combatant
 
     @inventory = Array(inventory) || []
-    @inventory.each do |item|
-      item.owner = self
-    end
+    take_ownership(@inventory)
 
     @ai = ai
     ai.owner = self if ai
@@ -58,6 +56,12 @@ class GameElement
     Math.sqrt(dx ** 2 + dy ** 2)
   end
 
+  def take_ownership(inventory)
+    inventory.each do |item|
+      item.owner = self
+    end
+  end
+
   def pick_up(target)
     if @inventory.size >= 26
       game.message("Your inventory is full. You can not pick up anything from #{target.name}.", TCOD::Color::RED)
@@ -67,6 +71,7 @@ class GameElement
     else
       game.message("You found #{target.inventory.map(&:name).join(',')}.", TCOD::Color::RED)
       @inventory += target.inventory
+      take_ownership(@inventory)
       game.elements.delete(target)
     end
   end
