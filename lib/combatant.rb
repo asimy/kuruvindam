@@ -1,4 +1,7 @@
+require_relative 'component_messaging'
+
 class Combatant
+  include ComponentMessaging
 
   attr_accessor :max_hp, :hp, :defense, :power, :owner, :death_function
 
@@ -22,10 +25,10 @@ class Combatant
     damage = power - target.combatant.defense
 
     if damage > 0
-      puts "#{owner.name} attacks #{target.name} for #{damage} hit points"
+      message("#{owner.name} attacks #{target.name} for #{damage} hit points", TCOD::Color::YELLOW)
       target.combatant.take_damage(damage)
     else
-      puts "#{owner.name.captalize} attacks #{target.name} but it has no effect!"
+      message("#{owner.name.captalize} attacks #{target.name} but it has no effect!", TCOD::Color::WHITE)
     end
   end
 

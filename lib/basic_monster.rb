@@ -4,7 +4,6 @@ class BasicMonster
   attr_accessor :owner
 
   def initialize(player:)
-    @owner = owner
     @player = player
   end
 

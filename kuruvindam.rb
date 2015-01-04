@@ -5,11 +5,14 @@ require_relative 'lib/game_element'
 require_relative 'lib/game_map'
 require_relative 'lib/combatant'
 require_relative 'lib/basic_monster'
+require_relative 'lib/confused_monster'
 require_relative 'lib/item'
+require_relative 'lib/spell_book'
 require 'byebug'
 
 class Kuruvindam
   include Singleton
+  include SpellBook
 
   attr_reader :con, :panel, :elements, :player, :game_map, :mouse, :key
   attr_accessor :game_state, :player_action, :game_messages
@@ -25,7 +28,6 @@ class Kuruvindam
 
   MAX_ROOM_MONSTERS = 2
   MAX_ROOM_ITEMS = 3
-  HEAL_AMOUNT = 4
 
   #sizes and coordinates relevant for the GUI
   BAR_WIDTH = 20
@@ -135,7 +137,13 @@ class Kuruvindam
     return player.inventory[index]
   end
 
-  private
+  def monsters_in_view
+    elements.select {|element| element.combatant && element != player and TCOD.map_is_in_fov(@fov_map, element.x, element.y)}
+  end
+
+  def closest_monster(max_range)
+    monsters_in_view.sort { |a, b| player.distance_to(a) <=> player.distance_to(b) }.first
+  end
 
   def player_death(player)
     message("#{player.name} died!", TCOD::Color::WHITE)
@@ -179,16 +187,20 @@ class Kuruvindam
       y = rand(room.y1 + 1..room.y2 - 1)
 
       unless blocked?(x, y)
-        inventory_item = Item.new('Healing potion') {
-          if player.combatant.hp == player.combatant.max_hp
-            message('You are already at full health.', TCOD::Color::RED)
-            return 'cancelled'
-          end
+        die_roll = rand(1..100)
+        case
+        when die_roll < 80
+          inventory_item = Item.new('Healing potion', heal_player)
+          item = GameElement.new(x, y, '!', 'Healing potion', TCOD::Color::VIOLET, @con, @fov_map, inventory: inventory_item)
+        when die_roll >= 80 && die_roll < 90
+          inventory_item = Item.new('Scroll of lightning bolt', lightning_bolt)
+          item = GameElement.new(x, y, '#', 'Scroll of lightning bolt', TCOD::Color::YELLOW, @con, @fov_map, inventory: inventory_item)
 
-          message('Your wounds start to feel better!', TCOD::Color::LIGHT_VIOLET)
-          player.combatant.heal(HEAL_AMOUNT)
-        }
-        item = GameElement.new(x, y, '!', 'Healing potion', TCOD::Color::VIOLET, @con, @fov_map, inventory: inventory_item)
+        else die_roll >= 90 && die_roll <= 100
+          inventory_item = Item.new('Scroll of confuse monster', confuse_monster)
+          item = GameElement.new(x, y, '#', 'Scroll of confuse monster', TCOD::Color::GREEN, @con, @fov_map, inventory: inventory_item)
+
+        end
 
         @elements << item
         send_to_back(item)
