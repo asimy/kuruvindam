@@ -1,14 +1,16 @@
+require_relative 'message_manager'
+
 class GameElement
 
-  attr_accessor :x, :y, :char, :color, :con, :fov_map, :name, :blocks, :combatant, :ai, :game, :inventory
+  attr_accessor :x, :y, :char, :color, :con, :fov_map, :name, :blocks, :combatant, :ai, :inventory, :movement_manager
 
-  def initialize(startx, starty, character, name, char_color, console, fov_map, blocks: false, combatant: nil, ai: nil, inventory: [])
+  def initialize(startx, starty, character, name, char_color, console, movement_manager, blocks: false, combatant: nil, ai: nil, inventory: [])
     @x = startx
     @y = starty
     @char = character
     @color = char_color
     @con = console
-    @fov_map = fov_map
+    @movement_manager = movement_manager
     @name = name
     @blocks = blocks
     @combatant = combatant
@@ -19,6 +21,16 @@ class GameElement
 
     @ai = ai
     ai.owner = self if ai
+
+    @message_manager = MessageManager.instance
+  end
+
+  def fov_map
+    movement_manager.fov_map
+  end
+
+  def message(new_msg, color = TCOD::Color::WHITE)
+    @message_manager.message(new_msg, color)
   end
 
   def move(dx, dy)
@@ -47,7 +59,7 @@ class GameElement
 
     dx = (dx/distance).round.to_i
     dy = (dy/distance).round.to_i
-    move(dx, dy) unless game.blocked?(x + dx, y + dy)
+    move(dx, dy) unless movement_manager.blocked?(x + dx, y + dy)
   end
 
   def distance_to(other_element)
@@ -56,23 +68,30 @@ class GameElement
     Math.sqrt(dx ** 2 + dy ** 2)
   end
 
+  def distance(x, y)
+    dx = x - self.x
+    dy = y - self.y
+    Math.sqrt(dx ** 2 + dy ** 2)
+  end
+
   def take_ownership(inventory)
     inventory.each do |item|
+      item.old_owner = item.owner
       item.owner = self
     end
   end
 
   def pick_up(target)
     if @inventory.size >= 26
-      game.message("Your inventory is full. You can not pick up anything from #{target.name}.", TCOD::Color::RED)
+      message("Your inventory is full. You can not pick up anything from #{target.name}.", TCOD::Color::RED)
     elsif @inventory.size >= 26 - target.inventory.size
-      game.message("You don't have enough room to pick up everything from #{target.name}.", TCOD::Color::RED)
+      message("You don't have enough room to pick up everything from #{target.name}.", TCOD::Color::RED)
       # need dialog allowing player to choose what to pick up
     else
-      game.message("You found #{target.inventory.map(&:name).join(',')}.", TCOD::Color::RED)
+      message("You found #{target.inventory.map(&:name).join(',')}.", TCOD::Color::RED)
       @inventory += target.inventory
       take_ownership(@inventory)
-      game.elements.delete(target)
+      movement_manager.elements.delete(target)
     end
   end
 end

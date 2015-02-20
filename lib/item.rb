@@ -1,14 +1,15 @@
-require_relative 'component_messaging'
+require_relative 'message_manager'
 
 class Item
-  include ComponentMessaging
 
   attr_reader :name
-  attr_accessor :owner
+  attr_accessor :owner, :old_owner
 
   def initialize(name, effect = nil)
     @name = name
     @use_function = effect
+
+    @message_manager = MessageManager.instance
   end
 
   def use_item
@@ -19,5 +20,17 @@ class Item
         owner.inventory.delete(self)
       end
     end
+  end
+
+  def drop
+    byebug
+    self.owner.game.elements << old_owner
+    old_inventory = owner.inventory
+    @owner = old_owner
+    old_inventory.delete(self)
+  end
+
+  def message(new_msg, color = TCOD::Color::WHITE)
+    @message_manager.message(new_msg, color)
   end
 end

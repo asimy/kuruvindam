@@ -1,7 +1,6 @@
-require_relative 'component_messaging'
+require_relative 'message_manager'
 
 class Combatant
-  include ComponentMessaging
 
   attr_accessor :max_hp, :hp, :defense, :power, :owner, :death_function
 
@@ -12,6 +11,8 @@ class Combatant
     @power = power
     @death_function = death_function
     @owner = nil
+
+    @message_manager = MessageManager.instance
   end
 
   def take_damage(damage)
@@ -37,4 +38,9 @@ class Combatant
 
     @hp = [@hp, @max_hp].min
   end
+
+  def message(new_msg, color = TCOD::Color::WHITE)
+    @message_manager.message(new_msg, color)
+  end
+
 end
