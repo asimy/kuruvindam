@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 require 'libtcod'
 require 'singleton'
+require_relative 'lib/message_manager'
+require_relative 'lib/movement_manager'
 require_relative 'lib/game_element'
 require_relative 'lib/game_map'
 require_relative 'lib/combatant'
@@ -14,7 +16,7 @@ class Kuruvindam
   include Singleton
   include SpellBook
 
-  attr_reader :con, :panel, :elements, :player, :game_map, :mouse, :key
+  attr_reader :con, :panel, :player, :game_map, :mouse, :key, :movement_manager
   attr_accessor :game_state, :player_action, :game_messages
 
   #actual size of the window
@@ -51,47 +53,50 @@ class Kuruvindam
     @mouse = TCOD::Mouse.new
     @key = TCOD::Key.new
 
-    @map = GameMap.new(MAP_WIDTH, MAP_HEIGHT)
-    @game_map = @map.game_map
-    @fov_map = @map.fov_map
+    @movement_manager = MovementManager.new(GameMap.new(MAP_WIDTH, MAP_HEIGHT))
 
     player_combatant = Combatant.new(hp: 29, defense: 2, power: 5, death_function: method(:player_death))
-    @player = GameElement.new(@map.starting_x, @map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::BLUE, @con, @fov_map, blocks: true, combatant: player_combatant)
-    @player.game = self
-    @map.fov_recompute(player: @player)
-    @elements = [@player]
+    @player = GameElement.new(map.starting_x, map.starting_y, '@', 'Waldo the Wanderer', TCOD::Color::BLUE, @con, @movement_manager, blocks: true, combatant: player_combatant)
+    map.fov_recompute(player: @player)
+    movement_manager.elements = [@player]
 
-    @map.rooms.each do |room|
+    map.rooms.each do |room|
       place_objects(room)
     end
 
     @game_state = :playing
     @player_action = nil
-    @game_messages = []
+
+    @message_manager = MessageManager.instance
+    @game_messages = @message_manager.game_messages
 
     message('Welcome stranger! Prepare to perish in the Tombs of the Ancient Kings.', TCOD::Color::RED)
 
     game_loop
   end
 
+  def elements
+    movement_manager.elements
+  end
+
   def blocked?(x, y)
-    return @game_map[x][y].blocked if @game_map[x][y].blocked
-    blocking_elements = elements.select {|element| element.blocks &&
-                                                   element.x == x &&
-                                                   element.y == y }
-    return blocking_elements.size > 0
+    movement_manager.blocked?(x, y)
+  end
+
+  def map
+    movement_manager.map
+  end
+
+  def game_map
+    movement_manager.game_map
+  end
+
+  def fov_map
+    movement_manager.fov_map
   end
 
   def message(new_msg, color = TCOD::Color::WHITE)
-    new_msg_lines = word_wrap(new_msg, line_width: MSG_WIDTH)
-
-    new_msg_lines.each_line do |line|
-      # get rid of oldest line if the message list is at its max length
-      game_messages.shift if game_messages.size == MSG_HEIGHT
-
-      # use a two-element hash
-      game_messages << {text: line, color: color}
-    end
+    @message_manager.message(new_msg, color)
   end
 
   def menu(header, entries, width)
@@ -138,7 +143,7 @@ class Kuruvindam
   end
 
   def monsters_in_view
-    elements.select {|element| element.combatant && element != player and TCOD.map_is_in_fov(@fov_map, element.x, element.y)}
+    elements.select {|element| element.combatant && element != player and TCOD.map_is_in_fov(fov_map, element.x, element.y)}
   end
 
   def closest_monster(max_range)
@@ -171,15 +176,14 @@ class Kuruvindam
       if rand(1..10) <= 8
         monster_combatant = Combatant.new(hp: 10, defense: 0, power: 3, death_function: method(:monster_death))
         ai_component = BasicMonster.new(player: player)
-        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, @fov_map, blocks: true, combatant: monster_combatant, ai: ai_component)
+        monster = GameElement.new(x, y, 'o', 'Orc', TCOD::Color::DESATURATED_GREEN, @con, movement_manager, blocks: true, combatant: monster_combatant, ai: ai_component)
       else
         monster_combatant = Combatant.new(hp: 16, defense: 1, power: 4, death_function: method(:monster_death))
         ai_component = BasicMonster.new(player: player)
-        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, @fov_map, blocks: true, combatant: monster_combatant, ai: ai_component)
+        monster = GameElement.new(x, y, 'T', 'Troll', TCOD::Color::DARKER_GREEN, @con, movement_manager, blocks: true, combatant: monster_combatant, ai: ai_component)
       end
-      monster.game = self
 
-      @elements << monster
+      elements << monster
     end
 
     (0..rand(MAX_ROOM_ITEMS)).each do
@@ -189,20 +193,21 @@ class Kuruvindam
       unless blocked?(x, y)
         die_roll = rand(1..100)
         case
-        when die_roll < 80
+        when die_roll < 70
           inventory_item = Item.new('Healing potion', heal_player)
-          item = GameElement.new(x, y, '!', 'Healing potion', TCOD::Color::VIOLET, @con, @fov_map, inventory: inventory_item)
+          item = GameElement.new(x, y, '!', 'Healing potion', TCOD::Color::VIOLET, @con, movement_manager, inventory: inventory_item)
+        when die_roll >= 70 && die_roll < 80
+          inventory_item = Item.new('Scroll of fireball', fireball)
+          item = GameElement.new(x, y, '#', 'Scroll of fireball', TCOD::Color::DARK_RED, @con, movement_manager, inventory: inventory_item)
         when die_roll >= 80 && die_roll < 90
           inventory_item = Item.new('Scroll of lightning bolt', lightning_bolt)
-          item = GameElement.new(x, y, '#', 'Scroll of lightning bolt', TCOD::Color::YELLOW, @con, @fov_map, inventory: inventory_item)
-
+          item = GameElement.new(x, y, '#', 'Scroll of lightning bolt', TCOD::Color::YELLOW, @con, movement_manager, inventory: inventory_item)
         else die_roll >= 90 && die_roll <= 100
           inventory_item = Item.new('Scroll of confuse monster', confuse_monster)
-          item = GameElement.new(x, y, '#', 'Scroll of confuse monster', TCOD::Color::GREEN, @con, @fov_map, inventory: inventory_item)
-
+          item = GameElement.new(x, y, '#', 'Scroll of confuse monster', TCOD::Color::GREEN, @con, movement_manager, inventory: inventory_item)
         end
 
-        @elements << item
+        elements << item
         send_to_back(item)
       end
     end
@@ -216,14 +221,14 @@ class Kuruvindam
     x = player.x + dx
     y = player.y + dy
 
-    target = @elements.select {|element| element.combatant && element.x == x && element.y == y}.first
+    target = elements.select {|element| element.combatant && element.x == x && element.y == y}.first
 
     if target
       player.combatant.attack(target)
     else
       unless blocked?(x, y)
         player.move(dx, dy)
-        @map.fov_recompute(player: player)
+        map.fov_recompute(player: player)
       end
     end
   end
@@ -233,10 +238,36 @@ class Kuruvindam
 
     names = elements.select {|element| element.x == x &&
       element.y == y &&
-      TCOD::map_is_in_fov(@fov_map, element.x, element.y)}
-      .map(&:name)
+      TCOD::map_is_in_fov(fov_map, element.x, element.y)}
+      .map { |element|  element.respond_to?(:owner) ? "#{element.name} owned by #{element.owner}" : element.name }
 
     names.map(&:capitalize).join(', ')
+  end
+
+  def target_tile(max_range = nil)
+    while true do
+      #render the screen. this erases the inventory and shows the names of objects under the mouse.
+      TCOD.console_flush()
+      TCOD.sys_check_for_event(TCOD::EVENT_KEY_PRESS|TCOD::EVENT_MOUSE,key,mouse)
+      render_all()
+
+      x, y = mouse.cx, mouse.cy
+
+      return [nil, nil] if mouse.rbutton_pressed || key.vk == TCOD::KEY_ESCAPE
+      return [x, y] if mouse.lbutton_pressed && TCOD.map_is_in_fov(fov_map, x, y) &&
+      (max_range.nil? || player.distance(x,y))
+    end
+  end
+
+  def target_monster(max_range = nil)
+    byebug
+    while true do
+      x, y = target_tile(max_range)
+      return nil unless x
+
+      monster = elements.select {|element| element.x == x && element.y == y && element.combatant && element != player}.first
+      return monster
+    end
   end
 
   def handle_keys
@@ -272,6 +303,11 @@ class Kuruvindam
           chosen_item.use_item if chosen_item
         end
 
+        if key_char == 'd'
+          chosen_item = inventory_menu("Press the key next to an item to use it or any other key to cancel\n")
+          chosen_item.drop if chosen_item
+        end
+
         return :didnt_take_turn
       end
     end
@@ -290,40 +326,33 @@ class Kuruvindam
                           TCOD::CENTER, "#{name}: #{value}/#{maximum}")
   end
 
-  # stolen (:)) from ActionView::Helpers::TextHelper#word_wrap
-  def word_wrap(text, options = {})
-    line_width = options.fetch(:line_width, 80)
-
-    text.split("\n").collect! do |line|
-      line.length > line_width ? line.gsub(/(.{1,#{line_width}})(\s+|$)/, "\\1\n").strip : line
-    end * "\n"
-  end
-
   def render_all
+    puts "Render all start"
     (0...MAP_HEIGHT).each do |y|
       (0...MAP_WIDTH).each do |x|
-        visible = TCOD.map_is_in_fov(@map.fov_map, x, y)
-        wall = @game_map[x][y].block_sight
+        puts "(#{x}, #{y})"
+        visible = TCOD.map_is_in_fov(movement_manager.fov_map, x, y)
+        wall = game_map[x][y].block_sight
 
         if visible
           if wall
-            TCOD.console_put_char_ex(@con, x, y, '#'.ord, @map.color_light_wall, @map.color_light_ground)
+            TCOD.console_put_char_ex(@con, x, y, '#'.ord, map.color_light_wall, map.color_light_ground)
           else
-            TCOD.console_put_char_ex(@con, x, y, '.'.ord, @map.color_light_wall, @map.color_light_ground)
+            TCOD.console_put_char_ex(@con, x, y, '.'.ord, map.color_light_wall, map.color_light_ground)
           end
         else
-          if @game_map[x][y].explored
+          if game_map[x][y].explored
             if wall
-              TCOD.console_put_char_ex(@con, x, y, '#'.ord, @map.color_dark_wall, @map.color_dark_ground)
+              TCOD.console_put_char_ex(@con, x, y, '#'.ord, map.color_dark_wall, map.color_dark_ground)
             else
-              TCOD.console_put_char_ex(@con, x, y, '.'.ord, @map.color_dark_wall, @map.color_dark_ground)
+              TCOD.console_put_char_ex(@con, x, y, '.'.ord, map.color_dark_wall, map.color_dark_ground)
             end
           end
         end
       end
     end
 
-    @elements.each {|element| element.draw unless element == player }
+    elements.each {|element| element.draw unless element == player }
     player.draw
     TCOD.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, nil, 0, 0, 1.0, 1.0)
 
@@ -363,7 +392,7 @@ class Kuruvindam
       render_all
 
       TCOD.console_flush()
-      @elements.each {|obj| obj.clear }
+      elements.each {|obj| obj.clear }
 
       #handle keys and exit game if needed
       player_action = handle_keys
