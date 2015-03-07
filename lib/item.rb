@@ -2,12 +2,14 @@ require_relative 'message_manager'
 
 class Item
 
-  attr_reader :name
+  attr_reader :name, :character, :color
   attr_accessor :owner, :old_owner
 
-  def initialize(name, effect = nil)
+  def initialize(name, character, color, effect = nil)
     @name = name
     @use_function = effect
+    @character = character
+    @color = color
 
     @message_manager = MessageManager.instance
   end
@@ -23,10 +25,7 @@ class Item
   end
 
   def drop
-    self.owner.game.elements << old_owner
-    old_inventory = owner.inventory
-    @owner = old_owner
-    old_inventory.delete(self)
+    owner.drop(self)
   end
 
   def message(new_msg, color = TCOD::Color::WHITE)

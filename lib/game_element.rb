@@ -94,4 +94,10 @@ class GameElement
       movement_manager.elements.delete(target)
     end
   end
+
+  def drop(item)
+    message("You dropped #{item.name}.", TCOD::Color::RED)
+    item_to_be_dropped = inventory.delete(item)
+    new_owner = GameElement.new(self.x, self.y, item_to_be_dropped.character, item_to_be_dropped.name, item_to_be_dropped.color, @con, movement_manager, inventory: item_to_be_dropped)
+  end
 end

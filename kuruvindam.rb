@@ -169,6 +169,11 @@ class Kuruvindam
   end
 
   def place_objects(room)
+    place_monsters(room)
+    place_items(room)
+  end
+
+  def place_monsters(room)
     (0..rand(MAX_ROOM_MONSTERS)).each do
       x = rand(room.x1 + 1..room.x2 - 1)
       y = rand(room.y1 + 1..room.y2 - 1)
@@ -185,7 +190,9 @@ class Kuruvindam
 
       elements << monster
     end
+  end
 
+  def place_items(room)
     (0..rand(MAX_ROOM_ITEMS)).each do
       x = rand(room.x1 + 1..room.x2 - 1)
       y = rand(room.y1 + 1..room.y2 - 1)
@@ -194,23 +201,21 @@ class Kuruvindam
         die_roll = rand(1..100)
         case
         when die_roll < 70
-          inventory_item = Item.new('Healing potion', heal_player)
-          item = GameElement.new(x, y, '!', 'Healing potion', TCOD::Color::VIOLET, @con, movement_manager, inventory: inventory_item)
+          inventory_item = Item.new('Healing potion', '!', TCOD::Color::VIOLET, heal_player)
         when die_roll >= 70 && die_roll < 80
-          inventory_item = Item.new('Scroll of fireball', fireball)
-          item = GameElement.new(x, y, '#', 'Scroll of fireball', TCOD::Color::DARK_RED, @con, movement_manager, inventory: inventory_item)
+          inventory_item = Item.new('Scroll of fireball', '#', TCOD::Color::DARK_RED, fireball)
         when die_roll >= 80 && die_roll < 90
-          inventory_item = Item.new('Scroll of lightning bolt', lightning_bolt)
-          item = GameElement.new(x, y, '#', 'Scroll of lightning bolt', TCOD::Color::YELLOW, @con, movement_manager, inventory: inventory_item)
+          inventory_item = Item.new('Scroll of lightning bolt', '#', TCOD::Color::YELLOW, lightning_bolt)
         else die_roll >= 90 && die_roll <= 100
-          inventory_item = Item.new('Scroll of confuse monster', confuse_monster)
-          item = GameElement.new(x, y, '#', 'Scroll of confuse monster', TCOD::Color::GREEN, @con, movement_manager, inventory: inventory_item)
+          inventory_item = Item.new('Scroll of confuse monster', '#', TCOD::Color::GREEN, confuse_monster)
         end
 
+        item = GameElement.new(x, y, inventory_item.character, inventory_item.name, inventory_item.color, @con, movement_manager, inventory: inventory_item)
         elements << item
         send_to_back(item)
       end
     end
+
   end
 
   def send_to_back(element)
@@ -303,8 +308,8 @@ class Kuruvindam
         end
 
         if key_char == 'd'
-          chosen_item = inventory_menu("Press the key next to an item to use it or any other key to cancel\n")
-          chosen_item.drop if chosen_item
+          chosen_item = inventory_menu("Press the key next to an item to drop it or any other key to cancel\n")
+          elements << chosen_item.drop if chosen_item
         end
 
         return :didnt_take_turn
