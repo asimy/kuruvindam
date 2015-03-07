@@ -7,13 +7,11 @@ I'm using it to understand how to write a roguelike (hence the lack of testing, 
 ## Prerequisites
 This has only been tested under Mac OS X, but in principle should run under any system that can run Ruby 2 and which libtcod supports
 
-## Installation
+## Installation and usage
 
 Grab a copy from github
 
     git clone https://github.com/asimy/kuruvindam.git kuruvindam
-
-## Usage
 
 To run the game,
 
@@ -26,16 +24,20 @@ These are *very* basic:
 - Arrows keys move your character (currently represented by the classic '@'). Bump into monsters to attack them.
 - Esc to exit the game
 - option/alt-Return toggles full screen
+- `g` to pick up an item the character is standing on
+- `i` show inventory
+- `d` drop item from inventory
 
 ## Todo
 
-- Test on other platforms
+- Test!!! and test on other platforms
+- No, really, get tests running
 - Finish the tutorial
 - Fix all the things
 
 ## Contributing
 
-1. Fork it ( https://github.com/asimy/kuruvindam/fork )
+1. Fork it (https://github.com/asimy/kuruvindam/fork)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
