@@ -39,14 +39,14 @@ class GameElement
   end
 
   def draw
-    if TCOD.map_is_in_fov(@fov_map, x, y)
+    if TCOD.map_is_in_fov(fov_map, x, y)
       TCOD.console_set_default_foreground(con, color)
       TCOD.console_put_char(@con, x, y, @char.ord, TCOD::BKGND_NONE)
     end
   end
 
   def clear
-    if TCOD.map_is_in_fov(@fov_map, x, y)
+    if TCOD.map_is_in_fov(fov_map, x, y)
       TCOD.console_put_char(con, x, y, '.'.ord, TCOD::BKGND_NONE)
     end
   end

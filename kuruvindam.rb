@@ -260,7 +260,6 @@ class Kuruvindam
   end
 
   def target_monster(max_range = nil)
-    byebug
     while true do
       x, y = target_tile(max_range)
       return nil unless x
@@ -327,10 +326,8 @@ class Kuruvindam
   end
 
   def render_all
-    puts "Render all start"
     (0...MAP_HEIGHT).each do |y|
       (0...MAP_WIDTH).each do |x|
-        puts "(#{x}, #{y})"
         visible = TCOD.map_is_in_fov(movement_manager.fov_map, x, y)
         wall = game_map[x][y].block_sight
 
@@ -392,7 +389,7 @@ class Kuruvindam
       render_all
 
       TCOD.console_flush()
-      elements.each {|obj| obj.clear }
+      elements.each {|element| element.clear }
 
       #handle keys and exit game if needed
       player_action = handle_keys

@@ -23,7 +23,6 @@ class Item
   end
 
   def drop
-    byebug
     self.owner.game.elements << old_owner
     old_inventory = owner.inventory
     @owner = old_owner
