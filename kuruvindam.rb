@@ -19,19 +19,19 @@ class Kuruvindam
   attr_reader :con, :panel, :player, :game_map, :mouse, :key, :movement_manager
   attr_accessor :game_state, :player_action, :game_messages
 
-  #actual size of the window
+  # actual size of the window
   SCREEN_WIDTH = 80
   SCREEN_HEIGHT = 50
 
   MAP_WIDTH = 80
   MAP_HEIGHT = 43
 
-  LIMIT_FPS = 20  #20 frames-per-second maximum
+  LIMIT_FPS = 20  # 20 frames-per-second maximum
 
   MAX_ROOM_MONSTERS = 2
   MAX_ROOM_ITEMS = 3
 
-  #sizes and coordinates relevant for the GUI
+  # sizes and coordinates relevant for the GUI
   BAR_WIDTH = 20
   PANEL_HEIGHT = 7
   PANEL_Y = SCREEN_HEIGHT - PANEL_HEIGHT
@@ -44,9 +44,9 @@ class Kuruvindam
 
   def initialize(width = SCREEN_WIDTH, height = SCREEN_HEIGHT)
     TCOD.console_set_custom_font('arial10x10.png', TCOD::FONT_TYPE_GREYSCALE | TCOD::FONT_LAYOUT_TCOD, 0, 0)
-    TCOD.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'ruby/TCOD tutorial', false, TCOD::RENDERER_SDL)
-    @con = TCOD.console_new(SCREEN_WIDTH, SCREEN_HEIGHT)
-    @panel = TCOD.console_new(SCREEN_WIDTH, SCREEN_HEIGHT)
+    TCOD.console_init_root(width, height, 'ruby/TCOD tutorial', false, TCOD::RENDERER_SDL)
+    @con = TCOD.console_new(width, height)
+    @panel = TCOD.console_new(width, height)
 
     TCOD.sys_set_fps(LIMIT_FPS)
 
@@ -100,7 +100,7 @@ class Kuruvindam
   end
 
   def menu(header, entries, width)
-    raise "cannot have a menu with more than 26 entries" if entries.count >= 26
+    fail 'cannot have a menu with more than 26 entries' if entries.count >= 26
 
     header_height = TCOD.console_get_height_rect(con, 0, 0, width, SCREEN_HEIGHT, header)
     height = entries.count + header_height
@@ -120,8 +120,8 @@ class Kuruvindam
     end
 
     # blit the contents of 'window' to the root console
-    x = SCREEN_WIDTH/2 - width/2
-    y = SCREEN_HEIGHT/2 - height/2
+    x = SCREEN_WIDTH / 2 - width / 2
+    y = SCREEN_HEIGHT / 2 - height / 2
     TCOD.console_blit(window, 0, 0, width, height, nil, x, y, 1.0, 0.7)
 
     # show the root console and hold for a key press
@@ -139,15 +139,16 @@ class Kuruvindam
     end
 
     index = menu(header, entries, INVENTORY_WIDTH)
-    return player.inventory[index]
+    player.inventory[index]
   end
 
   def monsters_in_view
-    elements.select {|element| element.combatant && element != player and TCOD.map_is_in_fov(fov_map, element.x, element.y)}
+    elements.select { |element| element.combatant && element != player && TCOD.map_is_in_fov(fov_map, element.x, element.y) }
   end
 
   def closest_monster(max_range)
-    monsters_in_view.sort { |a, b| player.distance_to(a) <=> player.distance_to(b) }.first
+    nearest_monster = monsters_in_view.select { |monster| TCOD.map_is_in_fov(fov_map, monster.x, monster.y) }.sort { |a, b| player.distance_to(a) <=> player.distance_to(b) }.first
+    player.distance_to(nearest_monster) <= max_range ? nearest_monster : nil
   end
 
   def player_death(player)
@@ -215,7 +216,6 @@ class Kuruvindam
         send_to_back(item)
       end
     end
-
   end
 
   def send_to_back(element)
@@ -226,7 +226,7 @@ class Kuruvindam
     x = player.x + dx
     y = player.y + dy
 
-    target = elements.select {|element| element.combatant && element.x == x && element.y == y}.first
+    target = elements.select { |element| element.combatant && element.x == x && element.y == y }.first
 
     if target
       player.combatant.attack(target)
@@ -241,49 +241,49 @@ class Kuruvindam
   def get_names_under_mouse
     x, y = mouse.cx, mouse.cy
 
-    names = elements.select {|element| element.x == x &&
-      element.y == y &&
-      TCOD::map_is_in_fov(fov_map, element.x, element.y)}
-      .map { |element|  element.respond_to?(:owner) ? "#{element.name} owned by #{element.owner}" : element.name }
+    names = elements.select { |element| element.x == x &&
+                                        element.y == y &&
+                                        TCOD.map_is_in_fov(fov_map, element.x, element.y) }
+            .map { |element|  element.owner ? "#{element.name} owned by #{element.owner}" : element.name }
 
     names.map(&:capitalize).join(', ')
   end
 
   def target_tile(max_range = nil)
-    while true do
-      #render the screen. this erases the inventory and shows the names of objects under the mouse.
-      TCOD.console_flush()
-      TCOD.sys_check_for_event(TCOD::EVENT_KEY_PRESS|TCOD::EVENT_MOUSE,key,mouse)
-      render_all()
+    loop do
+      # render the screen. this erases the inventory and shows the names of objects under the mouse.
+      TCOD.console_flush
+      TCOD.sys_check_for_event(TCOD::EVENT_KEY_PRESS | TCOD::EVENT_MOUSE, key, mouse)
+      render_all
 
       x, y = mouse.cx, mouse.cy
 
       return [nil, nil] if mouse.rbutton_pressed || key.vk == TCOD::KEY_ESCAPE
       return [x, y] if mouse.lbutton_pressed && TCOD.map_is_in_fov(fov_map, x, y) &&
-      (max_range.nil? || player.distance(x,y))
+                       (max_range.nil? || player.distance(x, y))
     end
   end
 
   def target_monster(max_range = nil)
-    while true do
+    loop do
       x, y = target_tile(max_range)
       return nil unless x
 
-      monster = elements.select {|element| element.x == x && element.y == y && element.combatant && element != player}.first
+      monster = elements.select { |element| element.x == x && element.y == y && element.combatant && element != player }.first
       return monster
     end
   end
 
   def handle_keys
     if key.vk == TCOD::KEY_ENTER && key.lalt
-      #Alt+Enter: toggle fullscreen
-      TCOD.console_set_fullscreen(!TCOD.console_is_fullscreen())
+      # Alt+Enter: toggle fullscreen
+      TCOD.console_set_fullscreen(!TCOD.console_is_fullscreen)
     elsif key.vk == TCOD::KEY_ESCAPE
-      return :exit  #exit game
+      return :exit  # exit game
     end
 
     if @game_state == :playing
-      #movement keys
+      # movement keys
       if key.vk == TCOD::KEY_UP
         player_move_or_attack(0, -1)
       elsif key.vk == TCOD::KEY_DOWN
@@ -296,7 +296,7 @@ class Kuruvindam
         key_char = key.c
 
         if key_char == 'g'
-          item_holder = elements.select {|element| element.x == player.x && element.y == player.y && !element.inventory.empty?}.first
+          item_holder = elements.select { |element| element.x == player.x && element.y == player.y && !element.inventory.empty? }.first
           if item_holder
             player.pick_up(item_holder) if item_holder
           end
@@ -318,7 +318,7 @@ class Kuruvindam
   end
 
   def render_bar(x, y, total_width, name, value, maximum, bar_color, back_color)
-    bar_width = (value/maximum)*total_width
+    bar_width = (value / maximum) * total_width
     TCOD.console_set_default_background(panel, back_color)
     TCOD.console_rect(panel, x, y, total_width, 1, false, TCOD::BKGND_SCREEN)
 
@@ -354,15 +354,15 @@ class Kuruvindam
       end
     end
 
-    elements.each {|element| element.draw unless element == player }
+    elements.each { |element| element.draw unless element == player }
     player.draw
     TCOD.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, nil, 0, 0, 1.0, 1.0)
 
-    #prepare to render the GUI panel
+    # prepare to render the GUI panel
     TCOD.console_set_default_background(panel, TCOD::Color::BLACK)
     TCOD.console_clear(panel)
 
-    #print the game messages, one line at a time
+    # print the game messages, one line at a time
     y = 1
     game_messages.each do |msg|
       TCOD.console_set_default_foreground(panel, msg[:color])
@@ -370,16 +370,15 @@ class Kuruvindam
       y += 1
     end
 
-
-    #show the player's stats
+    # show the player's stats
     render_bar(1, 1, BAR_WIDTH, 'HP', player.combatant.hp, player.combatant.max_hp,
                TCOD::Color::LIGHT_RED, TCOD::Color::DARKER_RED)
 
-    #display names of objects under the mouse
+    # display names of objects under the mouse
     TCOD.console_set_default_foreground(panel, TCOD::Color::LIGHT_GRAY)
-    TCOD.console_print_ex(panel, 1, 0, TCOD::BKGND_NONE, TCOD::LEFT, get_names_under_mouse())
+    TCOD.console_print_ex(panel, 1, 0, TCOD::BKGND_NONE, TCOD::LEFT, get_names_under_mouse)
 
-    #blit the contents of "panel" to the root console
+    # blit the contents of "panel" to the root console
     TCOD.console_blit(panel, 0, 0, SCREEN_WIDTH, PANEL_HEIGHT, nil, 0, PANEL_Y, 1.0, 1.0)
   end
 
@@ -389,14 +388,14 @@ class Kuruvindam
   def game_loop
     until TCOD.console_is_window_closed
       TCOD.console_set_default_foreground(con, TCOD::Color::WHITE)
-      TCOD::sys_check_for_event(TCOD::EVENT_KEY_PRESS | TCOD::EVENT_MOUSE, key, mouse)
+      TCOD.sys_check_for_event(TCOD::EVENT_KEY_PRESS | TCOD::EVENT_MOUSE, key, mouse)
 
       render_all
 
-      TCOD.console_flush()
-      elements.each {|element| element.clear }
+      TCOD.console_flush
+      elements.each(&:clear)
 
-      #handle keys and exit game if needed
+      # handle keys and exit game if needed
       player_action = handle_keys
       break if player_action == :exit
 
@@ -407,7 +406,6 @@ class Kuruvindam
       end
     end
   end
-
 end
 
 Kuruvindam.instance

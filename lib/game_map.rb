@@ -1,5 +1,4 @@
 class GameMap
-
   ROOM_MAX_SIZE = 10
   ROOM_MIN_SIZE = 6
   MAX_ROOMS = 30
@@ -24,7 +23,6 @@ class GameMap
 
     @fov_map = TCOD.map_new(@width, @height)
 
-
     make_game_map
     setup_fov_map
   end
@@ -32,7 +30,7 @@ class GameMap
   def make_game_map
     @game_map = Array.new(@width) { Array.new(@height) { Tile.new(true) } }
 
-    (1..MAX_ROOMS).each_with_index do |i|
+    (1..MAX_ROOMS).each do
       w = rand(ROOM_MIN_SIZE..ROOM_MAX_SIZE)
       h = rand(ROOM_MIN_SIZE..ROOM_MAX_SIZE)
       x = rand(0...(@width - w - 1))
@@ -93,14 +91,14 @@ class GameMap
   end
 
   def create_horizontal_tunnel(x1, x2, y)
-    ([x1, x2].min..[x1,x2].max).each do |x|
+    ([x1, x2].min..[x1, x2].max).each do |x|
       game_map[x][y].blocked = false
       game_map[x][y].block_sight = false
     end
   end
 
   def create_vertical_tunnel(y1, y2, x)
-    ([y1, y2].min..[y1,y2].max).each do |y|
+    ([y1, y2].min..[y1, y2].max).each do |y|
       game_map[x][y].blocked = false
       game_map[x][y].block_sight = false
     end
@@ -108,7 +106,6 @@ class GameMap
 end
 
 class Tile
-
   attr_accessor :blocked, :block_sight, :explored
 
   def initialize(blocked, block_sight = nil)
@@ -119,7 +116,6 @@ class Tile
 end
 
 class Rect
-
   attr_reader :x1, :x2, :y1, :y2
 
   def initialize(top_left_x, top_left_y, width, height)
@@ -130,13 +126,15 @@ class Rect
   end
 
   def center
-    center_x = (x1 + x2)/2
-    center_y = (y1 + y2)/2
-    return center_x, center_y
+    center_x = (x1 + x2) / 2
+    center_y = (y1 + y2) / 2
+    [center_x, center_y]
   end
 
   def intersect(other_rectangle)
-    x1 <= other_rectangle.x2 && x2 >= other_rectangle.x1 &&
-    y1 <= other_rectangle.y2 && y2 >= other_rectangle.y1
+    x1 <= other_rectangle.x2 &&
+      x2 >= other_rectangle.x1 &&
+      y1 <= other_rectangle.y2 &&
+      y2 >= other_rectangle.y1
   end
 end

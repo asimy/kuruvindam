@@ -10,9 +10,11 @@ class MovementManager
 
   def blocked?(x, y)
     return game_map[x][y].blocked if game_map[x][y].blocked
-    blocking_elements = elements.select {|element| element.blocks &&
-                                                   element.x == x &&
-                                                   element.y == y }
-    return blocking_elements.size > 0
+    blocking_elements = elements.select do|element|
+      element.blocks &&
+      element.x == x &&
+      element.y == y
+    end
+    blocking_elements.size > 0
   end
 end

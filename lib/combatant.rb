@@ -1,7 +1,6 @@
 require_relative 'message_manager'
 
 class Combatant
-
   attr_accessor :max_hp, :hp, :defense, :power, :owner, :death_function
 
   def initialize(hp:, defense:, power:, death_function: nil)
@@ -16,10 +15,10 @@ class Combatant
   end
 
   def take_damage(damage)
-      @hp -= damage if damage > 0 # TODO sort out this death function stuff
-      if hp <= 0 && death_function
-        death_function.call(owner)
-      end
+    @hp -= damage if damage > 0 # TODO sort out this death function stuff
+    if hp <= 0 && death_function
+      death_function.call(owner)
+    end
   end
 
   def attack(target)
@@ -42,5 +41,4 @@ class Combatant
   def message(new_msg, color = TCOD::Color::WHITE)
     @message_manager.message(new_msg, color)
   end
-
 end

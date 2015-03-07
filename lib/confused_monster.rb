@@ -1,13 +1,12 @@
 require_relative 'message_manager'
 
 class ConfusedMonster
-
   CONFUSE_NUM_TURNS = 10
 
   attr_accessor :owner
   attr_reader :old_ai, :duration
 
-  def initialize(old_ai, duration=CONFUSE_NUM_TURNS)
+  def initialize(old_ai, duration = CONFUSE_NUM_TURNS)
     @old_ai = old_ai
     @duration = duration
 

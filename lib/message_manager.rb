@@ -17,7 +17,7 @@ class MessageManager
       game_messages.shift if game_messages.size == Kuruvindam::MSG_HEIGHT
 
       # use a two-element hash
-      game_messages << {text: line, color: color}
+      game_messages << { text: line, color: color }
     end
   end
 

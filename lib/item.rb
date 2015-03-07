@@ -1,7 +1,6 @@
 require_relative 'message_manager'
 
 class Item
-
   attr_reader :name, :character, :color
   attr_accessor :owner, :old_owner
 

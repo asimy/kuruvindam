@@ -1,5 +1,4 @@
 class BasicMonster
-
   attr_reader :player
   attr_accessor :owner
 
