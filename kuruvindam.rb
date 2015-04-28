@@ -244,7 +244,7 @@ class Kuruvindam
     names = elements.select { |element| element.x == x &&
                                         element.y == y &&
                                         TCOD.map_is_in_fov(fov_map, element.x, element.y) }
-            .map { |element|  element.owner ? "#{element.name} owned by #{element.owner}" : element.name }
+            .map { |element|  element.owner rescue nil ? "#{element.name} owned by #{element.owner}" : element.name }
 
     names.map(&:capitalize).join(', ')
   end
